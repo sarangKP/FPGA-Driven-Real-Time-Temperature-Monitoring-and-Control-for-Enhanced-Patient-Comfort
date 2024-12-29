@@ -1,4 +1,3 @@
-/**
 //This is a testbench and was written for testing only
 module DHT11_tb(); 
 	reg clk_tb; 
@@ -364,4 +363,4 @@ module DHT11_tb();
 	assign w1_tb = w1_en ? w1r : 1'bZ;  
 	
 endmodule 
-**/
+
