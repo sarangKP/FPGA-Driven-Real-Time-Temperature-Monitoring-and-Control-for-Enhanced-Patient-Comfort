@@ -39,13 +39,12 @@ assign LED_match = (current_temp == {4'b0, set_temp}) ? 1'b1 : 1'b0;
 
 endmodule
 
-// Debounce Module
 module Debounce(
-    input clk_i,             // Clock signal
+    input clk_i,             // 100 MHz Clock
     input btn_i,             // Raw button input
     output reg btn_stable    // Stable debounced output
 );
-    reg [15:0] counter = 16'b0;
+    reg [19:0] counter = 20'b0; // 20 bits for 1,000,000 cycles at 100 MHz
     reg btn_sync_1, btn_sync_2;
 
     // Synchronize the button input to the clock
@@ -57,10 +56,11 @@ module Debounce(
     // Debounce logic
     always @(posedge clk_i) begin
         if (btn_sync_2 == btn_stable)
-            counter <= 16'b0;
-        else if (counter == 16'hFFFF)
+            counter <= 20'b0;
+        else if (counter == 20'hFFFFF)
             btn_stable <= btn_sync_2;
         else
             counter <= counter + 1;
     end
 endmodule
+
