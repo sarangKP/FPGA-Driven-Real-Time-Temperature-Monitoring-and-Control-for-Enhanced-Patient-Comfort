@@ -14,24 +14,22 @@ module DHT11(
 	assign w1_d = ~w1; 	//Is high when FPGA is asking for data (driving w1_o to 0).
 	assign w1_o = enw1 ? w1 : 1'bZ;  //Tri-buffering 
 
-	//5.12 us clock 
-	reg [7:0] div = 8'b0; 
-	always @(posedge clk_i) begin 
-		div <= div+1'b1; 
-	end 
-	wire clk_512us; 
-	assign clk_512us = div[7]; //This is the 5.12 us clock
+	reg [8:0] div = 9'b0; // 9 bits for 512 cycles at 100 MHz
+	always @(posedge clk_i)
+	    div <= div + 1'b1;
+	wire clk_512us = div[8]; // 512 cycles for 5.12 µs
 	
-	//up to 1.342 s counter 
-	reg [17:0] cnt_42ms = 18'b0; 
-	reg rst_cnt = 1'b1; 
-
-	always @(posedge clk_512us, negedge rst_cnt) begin 
-		if(!rst_cnt)
-			cnt_42ms <= 18'b0; 
-		else
-			cnt_42ms <= cnt_42ms+1'b1;  
-	end 
+	// Updated 1.342 s counter
+	reg [27:0] cnt_42ms = 28'b0; // Increased width for larger count
+	wire timeOut;
+	always @(posedge clk_512us or negedge rst_cnt) begin
+	    if (!rst_cnt)
+	        cnt_42ms <= 28'b0;
+	    else
+	        cnt_42ms <= cnt_42ms + 1'b1;
+	end
+	assign timeOut = (cnt_42ms == 28'd134200000); // Match for 1.342 s
+	
 	wire f20ms; 
 
 	assign f20ms = (cnt_42ms==18'h0DBC); //Is  high every 18.0019 ms 
