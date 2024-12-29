@@ -17,7 +17,7 @@ module DHT11wdisp_tb;
 
     // Clock generation
     initial clk_i = 0;
-    always #10 clk_i = ~clk_i; // 50 MHz clock (20ns period)
+    always #5 clk_i = ~clk_i; // 100 MHz clock (10ns period)
 
     // Instantiate the DUT (Device Under Test)
     DHT11wdisp DUT(
@@ -53,31 +53,31 @@ module DHT11wdisp_tb;
         // Simulate sensor data
         simulate_temp_humidity(8'd25, 8'd60); // Temp = 25, Humidity = 60
 
-        #100; // Wait 100 ns
+        #200; // Wait 200 ns
 
         // Switch to Set Mode
         mode_switch = 1;
-        #100;
+        #200;
 
         // Increment temperature set point
-        btn_inc = 1; #20 btn_inc = 0; #40; // Increment to 1
-        btn_inc = 1; #20 btn_inc = 0; #40; // Increment to 2
-        btn_inc = 1; #20 btn_inc = 0; #40; // Increment to 3
-        btn_inc = 1; #20 btn_inc = 0; #40; // Increment to 4
-        btn_inc = 1; #20 btn_inc = 0; #40; // Increment to 5
+        btn_inc = 1; #10 btn_inc = 0; #90; // Increment to 1
+        btn_inc = 1; #10 btn_inc = 0; #90; // Increment to 2
+        btn_inc = 1; #10 btn_inc = 0; #90; // Increment to 3
+        btn_inc = 1; #10 btn_inc = 0; #90; // Increment to 4
+        btn_inc = 1; #10 btn_inc = 0; #90; // Increment to 5
 
         // Decrement temperature set point
-        btn_dec = 1; #20 btn_dec = 0; #40; // Decrement to 4
-        btn_dec = 1; #20 btn_dec = 0; #40; // Decrement to 3
+        btn_dec = 1; #10 btn_dec = 0; #90; // Decrement to 4
+        btn_dec = 1; #10 btn_dec = 0; #90; // Decrement to 3
 
         // Switch back to Read Mode
         mode_switch = 0;
-        #100;
+        #200;
 
         // Simulate sensor reading to match set point
         simulate_temp_humidity(8'd3, 8'd55); // Temp = 3, Humidity = 55
 
-        #100;
+        #200;
 
         // Observe LED_match
         $display("LED_match should light up if current temp matches set temp");
