@@ -1,7 +1,8 @@
 module DHT11wdisp(
     input clk_i,                // Main clock
     input mode_switch,          // Switch to toggle modes (Mode 0: Read, Mode 1: Set)
-    input [3:0] set_temp_input, // 4-bit input for setting temperature
+    input btn_inc,              // Push button to increment temperature
+    input btn_dec,              // Push button to decrement temperature
     inout w1_o,                 // Data wire of DHT11
     output [6:0] DISP,          // 7-segment display segments
     output [3:0] AN,            // 7-segment display anodes
@@ -44,9 +45,11 @@ always @(posedge div[26]) switchDisp <= ~switchDisp;
 
 // Register for displaying temperature or humidity
 reg [27:0] num2disp = 28'b0;
-always @(switchDisp, temp_7s, hum_7s, mode_switch) begin
+wire [3:0] set_temp;            // Temperature set in Set Mode
+
+always @(switchDisp, temp_7s, hum_7s, mode_switch, set_temp) begin
     if (mode_switch) // Mode 1: Set Mode
-        num2disp <= {14'b0, 7'b0001000, set_temp_input}; // Display "Set X"
+        num2disp <= {14'b0, 7'b0001000, set_temp}; // Display "Set X"
     else if (switchDisp) // Mode 0: Read Mode
         num2disp <= {temp_7s, 7'b0011100, 7'b0110001};  // "°C"
     else
@@ -60,14 +63,15 @@ disp7 DISP_U0(
     .an_o(AN)
 );
 
-// Set Mode Logic
-reg [3:0] set_temp = 4'b0;
-always @(posedge clk_i) begin
-    if (mode_switch)
-        set_temp <= set_temp_input; // Update set temperature in Set Mode
-end
-
-// Compare current and set temperature
-assign LED_match = (dataDisp[15:8] == {4'b0, set_temp}) ? 1'b1 : 1'b0;
+// Set Mode Module
+SetMode SET_MODE_U0(
+    .clk_i(clk_i),
+    .mode_switch(mode_switch),
+    .btn_inc(btn_inc),
+    .btn_dec(btn_dec),
+    .current_temp(dataDisp[15:8]),
+    .set_temp(set_temp),
+    .LED_match(LED_match)
+);
 
 endmodule
