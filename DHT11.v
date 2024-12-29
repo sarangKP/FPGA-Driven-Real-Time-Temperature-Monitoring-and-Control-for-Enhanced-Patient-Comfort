@@ -1,5 +1,5 @@
 module DHT11(
-	input clk_i,  
+	input clk_i,  				//@100 MHz (the same for all modules)
 	inout w1_o, 				//wire of communication 
 	output reg done_o, 			//Tells when transfer is done 
 	output reg [7:0] temp_o,	//8-b temp integer
