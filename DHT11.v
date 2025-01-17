@@ -1,78 +1,81 @@
-module DHT11 (
-    input clk_i,            // Input clock
-    inout w1_o,             // Bidirectional data line to/from DHT11
-    output reg done_o,      // Signal indicating data transmission complete
-    output reg [7:0] temp_o,// 8-bit temperature data
-    output reg [7:0] hum_o, // 8-bit humidity data
-    output w1_d             // Drive enable signal
+module DHT11(
+    input clk_i,           // Input clock
+    inout dht11_data,      // Single-wire communication pin
+    output reg [7:0] temp_o, // Temperature output
+    output reg [7:0] hum_o,  // Humidity output
+    output reg done_o       // Done signal
 );
 
-// Tri-state driver for the DHT11 data line
-reg data_dir;
-reg data_out;
-assign w1_o = (data_dir) ? data_out : 1'bz;
+    // Internal signals
+    reg [3:0] state = 0;    // FSM state
+    reg [5:0] bit_count = 0; // Bit counter
+    reg [39:0] data_reg = 0; // 40-bit data register (DHT11 response)
+    reg drive_low = 1'b0;   // Control signal to drive line low
+    reg dht11_data_dir = 1'b1; // Direction control (1 = input, 0 = output)
 
-// State machine states
-localparam INIT       = 3'b000;
-localparam START      = 3'b001;
-localparam WAIT_RESP  = 3'b010;
-localparam READ_DATA  = 3'b011;
-localparam DONE       = 3'b100;
+    // Tri-state buffer for bidirectional data line
+    assign dht11_data = (dht11_data_dir == 1'b0) ? 1'b0 : 1'bz;
 
-// Internal signals
-reg [2:0] state = INIT;
-reg [39:0] data;
-reg [5:0] bit_count;
-reg [15:0] counter;
+    // Clock divider for timing control (1ms clock)
+    reg [15:0] clk_div = 0;
+    reg clk_1ms = 0;
 
-always @(posedge clk_i) begin
-    case (state)
-        INIT: begin
-            data_dir <= 1;    // Drive the line low
-            data_out <= 0;
-            counter <= 0;
-            state <= START;
+    always @(posedge clk_i) begin
+        clk_div <= clk_div + 1;
+        if (clk_div == 16'd50000) begin
+            clk_1ms <= ~clk_1ms;
+            clk_div <= 0;
         end
+    end
 
-        START: begin
-            if (counter < 16000) begin // Wait 1ms
-                counter <= counter + 1;
-            end else begin
-                data_dir <= 0; // Release the line
-                state <= WAIT_RESP;
+    // FSM for DHT11 communication
+    always @(posedge clk_1ms) begin
+        case (state)
+            0: begin
+                // Start state: send start signal
+                drive_low <= 1'b1;
+                dht11_data_dir <= 1'b0;
+                state <= 1;
             end
-        end
-
-        WAIT_RESP: begin
-            if (w1_o == 0) begin // Wait for DHT11 response
-                state <= READ_DATA;
-                counter <= 0;
-                bit_count <= 0;
-                data <= 40'b0;
-            end
-        end
-
-        READ_DATA: begin
-            if (bit_count < 40) begin
-                if (counter < 200) begin
-                    counter <= counter + 1;
-                end else begin
-                    data <= {data[38:0], w1_o}; // Shift in the data bit
-                    bit_count <= bit_count + 1;
-                    counter <= 0;
+            1: begin
+                // Wait 18ms (DHT11 start signal)
+                if (clk_div == 16'd18000) begin
+                    drive_low <= 1'b0;
+                    dht11_data_dir <= 1'b1; // Switch to input mode
+                    state <= 2;
                 end
-            end else begin
-                state <= DONE;
             end
-        end
+            2: begin
+                // Wait for DHT11 response (low pulse followed by high pulse)
+                if (dht11_data == 1'b0)
+                    state <= 3;
+            end
+            3: begin
+                if (dht11_data == 1'b1)
+                    state <= 4;
+            end
+            4: begin
+                // Start receiving 40 bits of data
+                if (bit_count < 40) begin
+                    if (dht11_data == 1'b1)
+                        data_reg[39 - bit_count] <= 1'b1;
+                    else
+                        data_reg[39 - bit_count] <= 1'b0;
 
-        DONE: begin
-            hum_o <= data[39:32];   // Extract humidity
-            temp_o <= data[23:16];  // Extract temperature
-            done_o <= 1;            // Signal that reading is done
-            state <= INIT;          // Reset state
-        end
-    endcase
-end
+                    bit_count <= bit_count + 1;
+                end else begin
+                    // All bits received
+                    state <= 5;
+                end
+            end
+            5: begin
+                // Parse data and finish
+                hum_o <= data_reg[39:32];
+                temp_o <= data_reg[23:16];
+                done_o <= 1'b1;
+                state <= 0; // Reset state for next operation
+            end
+        endcase
+    end
 
 endmodule
